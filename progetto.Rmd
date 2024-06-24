@@ -1,0 +1,360 @@
+---
+title: "Analisi di crescita economica, disoccupazione, spesa pubblica e le loro relazioni nei vari stati mondiali"
+output:
+  ioslides_presentation: default
+  slidy_presentation: default
+  beamer_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r, include=FALSE}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+gdp <- read.csv("economic_growth.csv", skip = 4)
+unemp <- read.csv("Unemployment.csv")
+exp <- read.csv("govt_edu_expenditure.csv", skip = 4)
+
+# Conversione da formato largo a lungo
+long_data_gdp <- gdp[,c(1,5:68)] %>%
+  tidyr::pivot_longer(cols = starts_with("X"),  # Selezionare le colonne che iniziano con "X".
+               names_to = "Year",        # Nome della nuova colonna chiave
+               names_prefix = "X",       # Rimuovere il prefisso "X" dai nomi delle colonne
+               values_to = "Value")      # Nome della nuova colonna di valori
+
+# Conversione da formato largo a lungo
+long_data_unemp <- unemp[,c(1,3:23)] %>%
+  tidyr::pivot_longer(cols = starts_with("X"),  # Selezionare le colonne che iniziano con "X".
+               names_to = "Year",        # Nome della nuova colonna chiave
+               names_prefix = "X",       # Rimuovere il prefisso "X" dai nomi delle colonne
+               values_to = "Value")      # Nome della nuova colonna di valori
+
+# Conversione da formato largo a lungo
+long_data_exp <- exp[,c(1,5:68)] %>%
+  tidyr::pivot_longer(cols = starts_with("X"),  # Selezionare le colonne che iniziano con "X".
+               names_to = "Year",        # Nome della nuova colonna chiave
+               names_prefix = "X",       # Rimuovere il prefisso "X" dai nomi delle colonne
+               values_to = "Value")      # Nome della nuova colonna di valori
+
+# Rinominare le colonne
+names(long_data_exp)[3] <- "Educational_Expense"
+names(long_data_gdp)[3] <- "GDP"
+names(long_data_unemp)[3] <- "Unemployment"
+
+# Unire i dati
+master <- long_data_gdp %>%
+  inner_join(long_data_unemp, by = c("Country.Name", "Year"))
+
+master <- master %>%
+  inner_join(long_data_exp, by = c("Country.Name", "Year"))
+
+# valori mancanti
+master$GDP[is.na(master$GDP)] <- mean(master$GDP, na.rm = T)
+master$Unemployment[is.na(master$Unemployment)] <- mean(master$Unemployment,
+                                                        na.rm = T)
+master$Educational_Expense[is.na(master$Educational_Expense)] <- mean(master$Educational_Expense, na.rm = T)
+
+head(master)
+```
+
+
+## Introduzione:
+
+- Comprendere le dinamiche degli indicatori economici come la disoccupazione, il Prodotto Interno Lordo (PIL) e le spese per l'istruzione è fondamentale per analizzare la salute e lo sviluppo generale dei Paesi. 
+
+- Questi indicatori non solo riflettono lo stato economico attuale, ma forniscono anche indicazioni sulle tendenze future e sui potenziali requisiti politici.
+
+- Questa analisi mira a fornire una panoramica completa dei tre fattori: PIL, tasso di disoccupazione e spese per l'istruzione in tutto il mondo.
+
+## Scopi e obiettivi:
+
+  L'obiettivo principale di questa analisi è valutare e comprendere le relazioni e le tendenze tra i principali indicatori economici nei diversi Paesi e nel tempo. In particolare, l'analisi si propone di:
+
+- Determinare quali sono i Paesi con i tassi di disoccupazione, il PIL e le spese per l'istruzione più elevati.
+
+- Esaminare come essi sono cambiati nel tempo.
+
+- Analizzare la correlazione tra i fattori presi in considerazione.
+
+- Determinare gli anni con i valori più alti.
+
+## I 5 paesi con il più alto tasso di disoccupazione
+
+- Il tasso di disoccupazione più alto si registra in Kosovo, seguito dalla Macedonia del Nord e dal Sudafrica.
+
+```{r, fig.height=4}
+res <- master %>%
+  group_by(Country.Name) %>%
+  summarise(Avg_Unemployment = mean(Unemployment)) %>%
+  arrange(-Avg_Unemployment) %>%
+  head(5)
+
+ggplot(res, aes(x = Country.Name, y = Avg_Unemployment)) +
+  geom_bar(stat = "identity", fill = "sky blue") +
+  theme_minimal() +
+  labs(title = "I 5 paesi con il più alto tasso di disoccupazione",
+       x = "Paese", y = "Disoccupazione media")
+```
+
+
+## I 5 paesi con il PIL più alto
+
+- Il PIL più alto si osserva per il Myanmar, seguito da Etiopia e Cina.
+
+```{r, fig.height=4}
+res <- master %>%
+  group_by(Country.Name) %>%
+  summarise(Avg_GDP = mean(GDP)) %>%
+  arrange(-Avg_GDP) %>%
+  head(5)
+
+ggplot(res, aes(x = Country.Name, y = Avg_GDP)) +
+  geom_bar(stat = "identity", fill = "violet") +
+  theme_minimal() +
+  labs(title = "I 5 paesi con il PIL più alto",
+       x = "Paese", y = "PIL medio")
+```
+
+
+
+## I 5 paesi con la più alta spesa media per l'istruzione Spese per l'istruzione
+
+- I Paesi con la più alta spesa per l'istruzione sono Cuba, Lesotho e Kiribati.
+
+```{r, fig.height=4}
+res <- master %>%
+  group_by(Country.Name) %>%
+  summarise(Avg_Educational_Expense = mean(Educational_Expense)) %>%
+  arrange(-Avg_Educational_Expense) %>%
+  head(5)
+
+ggplot(res, aes(x = Country.Name, y = Avg_Educational_Expense)) +
+  geom_bar(stat = "identity", fill = "cyan") +
+  theme_minimal() +
+  labs(title = "I 5 paesi con la più alta spesa per l'istruzione",
+       x = "Paese", y = "Spesa media per l'istruzione")
+```
+
+
+## Andamento delle spese scolastiche nel corso degli anni
+
+- Non si osserva una tendenza chiara. La spesa più alta è stata osservata nel 2009 e la più bassa nel 2004.
+
+```{r, fig.height=4}
+res <- master %>%
+  group_by(Year) %>%
+  summarise(Avg_Educational_Expense = mean(Educational_Expense))
+
+ggplot(res, aes(x = Year, y = Avg_Educational_Expense, group = 1)) +
+  geom_point(col = "red") +
+  geom_line(lwd = 1.2, col = "cyan") +
+  theme_minimal() +
+  labs(title = "Andamento delle spese scolastiche nel corso degli anni",
+       x = "Anno", y = "Spesa media per l'istruzione") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+## Andamento delle spese per l'istruzione (Paese con le spese per l'istruzione più elevate)
+
+- Nel complesso, si osserva una tendenza alla diminuzione. La spesa più alta è stata osservata nel 2008 e la più bassa nel 2011, 2017 e 2018.
+
+```{r, fig.height=3.5}
+res <- master %>%
+  filter(Country.Name == "Cuba") %>%
+  group_by(Year) %>%
+  summarise(Avg_Educational_Expense = mean(Educational_Expense))
+
+ggplot(res, aes(x = Year, y = Avg_Educational_Expense, group = 1)) +
+  geom_point(col = "red") +
+  geom_line(lwd = 1.2, col = "cyan") +
+  theme_minimal() +
+  labs(title = "Andamento delle spese per l'istruzione nel corso degli anni per Cuba",
+       x = "Anno", y = "Spesa per l'istruzione") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+## Andamento del PIL nel corso degli anni
+
+- Si osserva una tendenza al ribasso. Nel 2020 si osserva un calo improvviso. Il massimo nel 2004 e il minimo nel 2020.
+
+```{r, fig.height=4}
+res <- master %>%
+  group_by(Year) %>%
+  summarise(Avg_GDP = mean(GDP))
+
+ggplot(res, aes(x = Year, y = Avg_GDP, group = 1)) +
+  geom_point(col = "red") +
+  geom_line(lwd = 1.2, col = "violet") +
+  theme_minimal() +
+  labs(title = "Andamento del PIL nel corso degli anni",
+       x = "Anno", y = "PIL medio") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+## Andamento del PIL negli anni per il Paese con il PIL più alto
+
+- Si osserva la stessa tendenza al ribasso. Il PIL più alto è nel 2000 e il più basso nel 2020.
+
+
+```{r, fig.height=4}
+res <- master %>%
+  filter(Country.Name == "Myanmar") %>%
+  group_by(Year) %>%
+  summarise(Avg_GDP = mean(GDP))
+
+ggplot(res, aes(x = Year, y = Avg_GDP, group = 1)) +
+  geom_point(col = "red") +
+  geom_line(lwd = 1.2, col = "violet") +
+  theme_minimal() +
+  labs(title = "Andamento del PIL nel corso degli anni per il Myanmar",
+       x = "Anno", y = "PIL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+## Andamento della disoccupazione nel corso degli anni
+
+- Si osserva una tendenza al ribasso della disoccupazione. La disoccupazione più alta è stata osservata nel 2002 e la più bassa nel 2018.
+
+```{r, fig.height=4}
+res <- master %>%
+  group_by(Year) %>%
+  summarise(Avg_Unemp = mean(Unemployment))
+
+ggplot(res, aes(x = Year, y = Avg_Unemp, group = 1)) +
+  geom_point(col = "red") +
+  geom_line(lwd = 1.2, col = "blue") +
+  theme_minimal() +
+  labs(title = "Andamento della disoccupazione nel corso degli anni",
+       x = "Anno", y = "Disoccupazione") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+## Andamento della disoccupazione per il paese con la disoccupazione più alta
+
+- La disoccupazione più bassa si osserva negli anni 2000, 2010, 2011, 2013, 2020. Una forte impennata si osserva nel 2002.
+
+
+```{r, fig.height=4}
+res <- master %>%
+  filter(Country.Name == "Kosovo") %>%
+  group_by(Year) %>%
+  summarise(Avg_Unemp = mean(Unemployment))
+
+ggplot(res, aes(x = Year, y = Avg_Unemp, group = 1)) +
+  geom_point(col = "red") +
+  geom_line(lwd = 1.2, col = "blue") +
+  theme_minimal() +
+  labs(title = "Andamento della disoccupazione nel corso degli anni per il Kosovo",
+       x = "Anno", y = "Disoccupazione") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+## Correlazione tra i fattori
+
+- Non si osserva una forte correlazione tra le coppie. Notiamo però una debole correlazione negativa.
+
+
+```{r}
+corrplot::corrplot(cor(master[,c(3:5)]))
+```
+
+
+## Top 6 anni con il PIL più alto dichiarato in totale
+
+- Il 2004, il 2006 e il 2007 hanno registrato il PIL più alto a livello globale.
+
+```{r}
+summary_data <- master %>%
+  group_by(Year) %>%
+  summarise(GDP = mean(GDP)) %>%
+  arrange(-GDP) %>%
+  head()
+
+# Creare una tabella formattata
+summary_data %>%
+  kable("html", 
+        col.names = c("Anno", "PIL medio"), 
+        align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", 
+                                      "condensed", "responsive"),
+                full_width = F,
+                position = "center") %>%
+  column_spec(2, bold = TRUE)
+
+```
+
+
+## I 6 anni con il più alto tasso di disoccupazione dichiarato in generale
+
+- Il 2002, il 2003 e il 2004 hanno registrato il più alto tasso di disoccupazione a livello globale.
+
+```{r}
+summary_data <- master %>%
+  group_by(Year) %>%
+  summarise(Unemployment = mean(Unemployment)) %>%
+  arrange(-Unemployment) %>%
+  head()
+
+# Creare una tabella formattata
+summary_data %>%
+  kable("html", 
+        col.names = c("Anno", "Disoccupazione media"), 
+        align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", 
+                                      "condensed", "responsive"),
+                full_width = F,
+                position = "center") %>%
+  column_spec(2, bold = TRUE)
+```
+
+## I 6 anni in cui sono state dichiarate le spese educative più alte in assoluto
+
+- Il 2009, il 2020 e il 2003 registrano le spese educative più alte riportate a livello globale.
+
+```{r, warning=FALSE, message=FALSE}
+summary_data <- master %>%
+  group_by(Year) %>%
+  summarise(Educational_Expense = mean(Educational_Expense)) %>%
+  arrange(-Educational_Expense) %>%
+  head() 
+
+# Creare una tabella formattata
+summary_data %>%
+  kable("html", 
+        col.names = c("Anno", "Spesa media per l'istruzione"), 
+        align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", 
+                                      "condensed", "responsive"),
+                full_width = F,
+                position = "center") %>%
+  column_spec(2, bold = TRUE)
+```
+
+
+
+## Conclusioni:
+
+I risultati indicano un miglioramento del mercato del lavoro, come si evince dalla tendenza alla diminuzione dei tassi di disoccupazione dal 2002 al 2018.
+
+- Il netto calo del PIL nel 2020 riflette probabilmente l'impatto economico globale della pandemia COVID-19.
+
+- Le fluttuazioni delle spese per l'istruzione suggeriscono che le priorità nazionali e le condizioni economiche variano.
+
+- La debole correlazione negativa tra questi fattori evidenzia la natura complessa e indipendente di questi indicatori economici.
+
+## GRAZIE!
